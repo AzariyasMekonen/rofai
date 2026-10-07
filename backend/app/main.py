@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from . import speech
 from .config import ROOT_DIR, get_settings
-from .llm import NotConfiguredError, chat_client, embed
+from .llm import NotConfiguredError, complete, copilot_chat, embed, ensure_llm_configured, stream_chat
 from .rag import Language, build_messages
 from .ratelimit import RateLimiter
 from .store import Hit, VectorStore
@@ -39,6 +39,8 @@ async def lifespan(app: FastAPI):
         log.warning("Index built with %s but EMBED_MODEL is %s; re-run ingest", store.embed_model, settings.embed_model)
     app.state.store = store
     yield
+    if settings.llm_provider == "copilot":
+        await copilot_chat().close()
 
 
 app = FastAPI(title="Tsehay Roschli anniversary guide", lifespan=lifespan, docs_url=None, redoc_url=None)
@@ -79,24 +81,50 @@ async def health(request: Request) -> dict:
     return {
         "ok": True,
         "llm": settings.llm_configured,
+        "llmProvider": settings.llm_provider,
         "speech": settings.speech_configured,
         "indexChunks": len(store) if store else 0,
+        "search": "vector" if _use_vectors(store) else "keyword",
         "persona": settings.persona_name,
         "school": settings.school_name,
     }
 
 
+def _use_vectors(store: VectorStore | None) -> bool:
+    return bool(store and store.has_vectors and settings.embeddings_configured)
+
+
+_SEARCH_KEYWORDS_PROMPT = (
+    "Translate the user's question into English search keywords for a school archive "
+    "(names, places, years, topics). Output only the keywords on one line."
+)
+
+
 async def _retrieve(store: VectorStore | None, question: str) -> list[Hit]:
     if not store:
         return []
-    query_vec = (await asyncio.to_thread(embed, [question]))[0]
-    return store.search(query_vec, settings.top_k)
+    if _use_vectors(store):
+        query_vec = (await asyncio.to_thread(embed, [question]))[0]
+        return store.search(query_vec, settings.top_k)
+    query = question
+    if speech.detect_text_language(question) == "am":
+        # The archive is mostly English, so keyword search needs English terms
+        try:
+            keywords = await complete(
+                [{"role": "system", "content": _SEARCH_KEYWORDS_PROMPT}, {"role": "user", "content": question}]
+            )
+            query = f"{question} {keywords}"
+        except NotConfiguredError:
+            raise
+        except Exception:
+            log.warning("keyword translation failed; searching with the original question", exc_info=True)
+    return store.search_text(query, settings.top_k)
 
 
 @app.post("/api/chat", dependencies=[Depends(chat_limit)])
 async def chat(req: ChatRequest, request: Request) -> StreamingResponse:
     try:
-        client = chat_client()
+        ensure_llm_configured()
         hits = await _retrieve(request.app.state.store, req.message.strip())
     except NotConfiguredError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -110,17 +138,8 @@ async def chat(req: ChatRequest, request: Request) -> StreamingResponse:
     async def stream() -> AsyncIterator[str]:
         yield _sse("sources", [{"source": h.chunk.source, "page": h.chunk.page, "score": round(h.score, 3)} for h in hits])
         try:
-            completion = await client.chat.completions.create(
-                model=settings.llm_model,
-                messages=messages,
-                stream=True,
-                temperature=0.3,
-                max_tokens=350,
-            )
-            async for chunk in completion:
-                # Azure sends content-filter frames with no choices
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield _sse("delta", {"text": chunk.choices[0].delta.content})
+            async for text in stream_chat(messages):
+                yield _sse("delta", {"text": text})
             yield _sse("done", {})
         except Exception:
             log.exception("chat completion failed")

@@ -1,9 +1,11 @@
+from collections.abc import AsyncIterator
 from functools import lru_cache
 
 import numpy as np
 from openai import AsyncOpenAI, OpenAI
 
 from .config import get_settings
+from .copilot_llm import CopilotChat
 
 EMBED_BATCH = 64
 
@@ -12,13 +14,46 @@ class NotConfiguredError(RuntimeError):
     pass
 
 
+def ensure_llm_configured() -> None:
+    s = get_settings()
+    if s.llm_configured:
+        return
+    if s.llm_provider == "copilot":
+        raise NotConfiguredError("COPILOT_GITHUB_TOKEN must be set in .env")
+    raise NotConfiguredError("LLM_BASE_URL and LLM_MODEL must be set in .env")
+
+
+@lru_cache
+def copilot_chat() -> CopilotChat:
+    return CopilotChat(get_settings())
+
+
 @lru_cache
 def chat_client() -> AsyncOpenAI:
     s = get_settings()
-    if not s.llm_configured:
-        raise NotConfiguredError("LLM_BASE_URL and LLM_MODEL must be set in .env")
+    ensure_llm_configured()
     # Ollama ignores the key, but the client requires a non-empty value
     return AsyncOpenAI(base_url=s.llm_base_url, api_key=s.llm_api_key or "unused")
+
+
+async def stream_chat(messages: list[dict[str, str]], max_tokens: int = 350) -> AsyncIterator[str]:
+    ensure_llm_configured()
+    s = get_settings()
+    if s.llm_provider == "copilot":
+        async for text in copilot_chat().stream(messages):
+            yield text
+        return
+    completion = await chat_client().chat.completions.create(
+        model=s.llm_model, messages=messages, stream=True, temperature=0.3, max_tokens=max_tokens
+    )
+    async for chunk in completion:
+        # Azure sends content-filter frames with no choices
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
+
+async def complete(messages: list[dict[str, str]], max_tokens: int = 100) -> str:
+    return "".join([t async for t in stream_chat(messages, max_tokens)]).strip()
 
 
 @lru_cache

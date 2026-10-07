@@ -40,3 +40,38 @@ def test_save_and_load_roundtrip(tmp_path: Path):
 
 def test_load_missing_index_returns_none(tmp_path: Path):
     assert VectorStore.load(tmp_path) is None
+
+
+def _text_store() -> VectorStore:
+    return VectorStore(
+        [
+            Chunk("lib", "The library was built in 1995 with help from parents.", "mag.pdf", 2),
+            Chunk("sport", "Our football team won the regional cup in 2004.", "mag.pdf", 7),
+            Chunk("fact", "The library was opened by the founder.", "facts.md", None, priority=True),
+        ],
+        None,
+        "",
+    )
+
+
+def test_keyword_search_ranks_matching_chunks():
+    hits = _text_store().search_text("Who won the football cup?", k=3)
+    assert [h.chunk.id for h in hits] == ["sport"]
+
+
+def test_keyword_search_priority_boost():
+    hits = _text_store().search_text("library", k=2)
+    assert hits[0].chunk.id == "fact"
+
+
+def test_keyword_search_handles_ethiopic():
+    store = VectorStore([Chunk("am", "ትምህርት ቤቱ በ1978 ተመሠረተ።", "a.txt")], None, "")
+    assert [h.chunk.id for h in store.search_text("ትምህርት ቤቱ", k=1)] == ["am"]
+
+
+def test_keyword_only_save_removes_stale_vectors(tmp_path: Path):
+    _store().save(tmp_path)
+    _text_store().save(tmp_path)
+    loaded = VectorStore.load(tmp_path)
+    assert loaded is not None and not loaded.has_vectors
+    assert len(loaded) == 3

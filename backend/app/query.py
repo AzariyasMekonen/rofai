@@ -21,7 +21,12 @@ def main() -> int:
     if store is None:
         print("No index found; run `python -m app.ingest` first.", file=sys.stderr)
         return 1
-    for rank, hit in enumerate(store.search(embed([question])[0], s.top_k), start=1):
+    hits = (
+        store.search(embed([question])[0], s.top_k)
+        if store.has_vectors and s.embeddings_configured
+        else store.search_text(question, s.top_k)
+    )
+    for rank, hit in enumerate(hits, start=1):
         c = hit.chunk
         where = f"{c.source} p.{c.page}" if c.page else c.source
         print(f"\n#{rank} score={hit.score:.3f} {where}{' [fact sheet]' if c.priority else ''}")

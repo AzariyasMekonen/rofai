@@ -1,7 +1,7 @@
 """Build the retrieval index from data/sources (PDF/MD/TXT) and data/facts.md.
 
 Usage:
-    uv run python -m app.ingest            # extract, chunk, embed, save
+    uv run python -m app.ingest            # extract, chunk, embed (if configured), save
     uv run python -m app.ingest --dry-run  # extract and chunk only; prints stats and samples
 """
 
@@ -176,6 +176,11 @@ def main() -> int:
         return 0
 
     from .llm import embed
+
+    if not s.embeddings_configured:
+        VectorStore(chunks, None, "").save(s.index_dir)
+        print(f"No embedding service configured: saved a keyword-search index to {s.index_dir}")
+        return 0
 
     print(f"Embedding with {s.embed_model} ...")
     vectors = embed([c.text for c in chunks])

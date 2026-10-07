@@ -5,7 +5,7 @@ Visitors ask questions by voice or text in English or Amharic (Afaan Oromo is te
 She answers in the first person, using only the school's own archive.
 
 ```
-browser (three.js + VRM avatar)  ──►  FastAPI backend  ──►  OpenAI-compatible LLM + embeddings
+browser (three.js + VRM avatar)  ──►  FastAPI backend  ──►  GitHub Copilot SDK (or any OpenAI-compatible LLM)
         mic / speakers                 │                   Azure AI Speech (STT, TTS, visemes)
                                        └── data/index (archive search)
 ```
@@ -13,15 +13,22 @@ browser (three.js + VRM avatar)  ──►  FastAPI backend  ──►  OpenAI-c
 ## Requirements
 
 - [uv](https://docs.astral.sh/uv/) (it installs the Python version pinned in `backend/pyproject.toml`), Node.js 20+
-- An OpenAI-compatible endpoint for chat and embeddings: Azure OpenAI / Foundry, OpenAI, or Ollama.
-  (GitHub Models was retired in July 2026 and can no longer be used.)
+- A language model, one of:
+  - **GitHub Copilot** (`LLM_PROVIDER=copilot`): a fine-grained personal access token (`github_pat_…`)
+    from an account with a Copilot plan. Every visitor question counts against that account's Copilot usage.
+    The runtime is started in locked-down `empty` mode with no tools, and each visitor session is deleted after the answer.
+  - **OpenAI-compatible** (`LLM_PROVIDER=openai`): Azure OpenAI / Foundry, OpenAI, or Ollama.
 - An Azure AI Speech resource (the free F0 tier is enough for testing)
+
+Copilot has no embeddings API, so without an embeddings endpoint the archive uses keyword (BM25) search.
+Amharic questions are first turned into English keywords by the model, because the archive is mostly English.
 
 ## Setup
 
 ```bash
 cp .env.example .env          # then fill in the keys
 cd backend && uv sync
+uv run python -m copilot download-runtime   # only for LLM_PROVIDER=copilot
 cd ../frontend && npm install
 ```
 
@@ -34,7 +41,7 @@ cd ../frontend && npm install
 ```bash
 cd backend
 uv run python -m app.ingest --dry-run   # check the OCR text looks right, no API calls
-uv run python -m app.ingest             # build data/index
+uv run python -m app.ingest             # build data/index (embeddings if configured, else keyword index)
 uv run python -m app.query "When was the school founded?"
 ```
 

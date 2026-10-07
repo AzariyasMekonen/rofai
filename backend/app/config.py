@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,9 +12,15 @@ class Settings(BaseSettings):
         env_file=ROOT_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
     )
 
+    llm_provider: Literal["openai", "copilot"] = "openai"
+
     llm_base_url: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
+
+    copilot_github_token: str = ""
+    # Empty uses the Copilot runtime's default model
+    copilot_model: str = ""
 
     embed_base_url: str = ""
     embed_api_key: str = ""
@@ -53,8 +60,18 @@ class Settings(BaseSettings):
         return self.data_dir / "facts.md"
 
     @property
+    def copilot_home(self) -> Path:
+        return ROOT_DIR / ".copilot-home"
+
+    @property
     def llm_configured(self) -> bool:
+        if self.llm_provider == "copilot":
+            return bool(self.copilot_github_token)
         return bool(self.llm_base_url and self.llm_model)
+
+    @property
+    def embeddings_configured(self) -> bool:
+        return bool((self.embed_base_url or self.llm_base_url) and self.embed_model)
 
     @property
     def speech_configured(self) -> bool:

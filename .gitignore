@@ -1,6 +1,9 @@
 # Secrets
 .env
 
+# Copilot runtime state
+.copilot-home/
+
 # Python
 .venv/
 __pycache__/
