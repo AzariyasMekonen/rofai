@@ -104,7 +104,13 @@ class CopilotChat:
                         if not streamed and data.content:
                             yield data.content
                     case SessionErrorData():
-                        raise CopilotChatError(f"{data.error_type}: {data.message}")
+                        hint = ""
+                        if data.error_type == "authorization":
+                            hint = (
+                                " -> COPILOT_GITHUB_TOKEN must be a fine-grained PAT owned by your personal"
+                                " account with the 'Copilot Requests' account permission, on an account with Copilot."
+                            )
+                        raise CopilotChatError(f"{data.error_type}: {data.message}{hint}")
                     case SessionIdleData():
                         finished = True
                         break

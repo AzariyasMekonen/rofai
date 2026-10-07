@@ -19,7 +19,7 @@ data/sources/
 data/index/
 
 # 3D models are large binaries; keep them out of git unless using Git LFS
-frontend/public/models/*.vrm
+*.vrm
 
 # Editors / OS
 .vscode/

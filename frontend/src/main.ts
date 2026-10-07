@@ -23,7 +23,7 @@ const canvas = $<HTMLCanvasElement>('avatar');
 const userCaption = $<HTMLParagraphElement>('user-caption');
 const answerCaption = $<HTMLParagraphElement>('answer-caption');
 const notice = $<HTMLParagraphElement>('notice');
-const langSelect = $<HTMLSelectElement>('lang');
+const statusText = $<HTMLSpanElement>('status-text');
 const micBtn = $<HTMLButtonElement>('mic');
 const micLabel = $<HTMLSpanElement>('mic-label');
 const textForm = $<HTMLFormElement>('text-form');
@@ -33,6 +33,8 @@ const disclosure = $<HTMLElement>('disclosure');
 const modelNote = $<HTMLParagraphElement>('model-note');
 
 const kiosk = new URLSearchParams(location.search).get('mode') === 'kiosk';
+// ?bust shows the stand-in bust even when a VRM file exists
+const forceBust = new URLSearchParams(location.search).has('bust');
 document.body.classList.toggle('kiosk', kiosk);
 
 const avatar = new AvatarScene(canvas);
@@ -70,19 +72,27 @@ class SentenceSplitter {
   }
 }
 
+const STATE_LABELS: Record<AvatarState, string> = {
+  idle: 'Ready',
+  listening: 'Listening… tap again when done',
+  thinking: 'Thinking…',
+  speaking: 'Speaking',
+};
+
 function setState(state: AvatarState): void {
   avatar.state = state;
   document.body.dataset.state = state;
-  micLabel.textContent =
-    state === 'listening' ? 'Listening… tap when done' : state === 'thinking' ? 'Thinking…' : 'Tap to ask';
+  statusText.textContent = STATE_LABELS[state];
+  micLabel.textContent = state === 'listening' ? 'Stop recording' : 'Tap to ask';
 }
 
 function showNotice(message: string): void {
   notice.textContent = message;
+  notice.hidden = !message;
 }
 
 function currentLang(): Lang {
-  return langSelect.value as Lang;
+  return (document.querySelector<HTMLInputElement>('input[name="lang"]:checked')?.value ?? 'auto') as Lang;
 }
 
 function stopEverything(): void {
@@ -229,14 +239,15 @@ async function init(): Promise<void> {
   setState('idle');
   avatar.start((dt, time) => lipSync.update(player, dt, time));
   const [loaded] = await Promise.all([
-    avatar.load(MODEL_URL),
+    avatar.load(forceBust ? '/models/__none__.vrm' : MODEL_URL),
     health()
       .then((h) => {
+        $('title').textContent = h.persona;
         if (h.school && h.school !== 'our school') {
-          $('subtitle').textContent = `${h.school} · 40th Anniversary`;
+          $('eyebrow').textContent = `${h.school} · 40th Anniversary`;
         }
         disclosure.textContent =
-          `This is an AI character based on ${h.persona}, created by the school for its 40th anniversary. ` +
+          `AI character based on ${h.persona}, created by the school for its 40th anniversary. ` +
           'Answers come from the school archives and may contain mistakes.';
         const missing = [!h.llm && 'language model', !h.speech && 'speech service'].filter(Boolean);
         if (missing.length) showNotice(`Server is missing configuration: ${missing.join(', ')}.`);
@@ -244,9 +255,9 @@ async function init(): Promise<void> {
       })
       .catch(() => showNotice('Cannot reach the server.')),
   ]);
-  if (!loaded && !kiosk) {
+  if (!loaded && !kiosk && !forceBust) {
     modelNote.hidden = false;
-    modelNote.textContent = `Placeholder avatar. Add the VRM model at frontend/public${MODEL_URL}.`;
+    modelNote.textContent = `Stand-in bust · add frontend/public${MODEL_URL}`;
   }
 }
 

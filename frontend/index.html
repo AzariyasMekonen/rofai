@@ -2,61 +2,77 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>40th Anniversary – Talk with our founder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5b800" />
+    <title>40 Years · Talk with Tsehay Roschli</title>
   </head>
-  <body>
-    <main id="app">
-      <header class="banner">
-        <span class="badge" aria-hidden="true">40</span>
-        <div>
-          <h1 id="title">Talk with our founder</h1>
-          <p id="subtitle">40th Anniversary</p>
-        </div>
-      </header>
+  <body data-state="idle">
+    <div class="tibeb tibeb--top" aria-hidden="true"></div>
 
-      <section class="stage">
+    <main id="app" class="app">
+      <section class="portrait" aria-label="Animated portrait">
+        <div class="halo" aria-hidden="true"></div>
         <canvas id="avatar" aria-label="Animated portrait of our founder"></canvas>
+        <div id="status" class="status" aria-hidden="true">
+          <span class="status__dot"></span><span id="status-text">Ready</span>
+        </div>
         <p id="model-note" class="model-note" hidden></p>
       </section>
 
-      <section class="captions" aria-live="polite">
-        <p id="user-caption" class="caption user"></p>
-        <p id="answer-caption" class="caption answer"></p>
-        <p id="notice" class="notice" role="status"></p>
+      <section class="panel">
+        <header class="masthead">
+          <div class="seal" aria-hidden="true"><span>40</span></div>
+          <div>
+            <p id="eyebrow" class="eyebrow">40th Anniversary</p>
+            <h1 id="title">Tsehay Roschli</h1>
+            <p class="role">Founder</p>
+          </div>
+        </header>
+
+        <div class="conversation" aria-live="polite">
+          <p id="notice" class="notice" role="status" hidden></p>
+          <p id="user-caption" class="question"></p>
+          <p id="answer-caption" class="answer"></p>
+          <p id="welcome" class="welcome">Tap the microphone and ask about the school's story, in English or Amharic.</p>
+        </div>
+
+        <div id="suggestions" class="suggestions" aria-label="Suggested questions"></div>
+
+        <div class="controls">
+          <div class="lang" role="radiogroup" aria-label="Language">
+            <label><input type="radio" name="lang" value="auto" checked /><span>Auto</span></label>
+            <label><input type="radio" name="lang" value="en" /><span>English</span></label>
+            <label><input type="radio" name="lang" value="am" /><span>አማርኛ</span></label>
+            <label><input type="radio" name="lang" value="om" /><span>Oromoo</span></label>
+          </div>
+
+          <button id="mic" class="mic" type="button" aria-pressed="false">
+            <span class="mic__ring" aria-hidden="true"></span>
+            <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
+              />
+            </svg>
+            <span id="mic-label" class="visually-hidden">Tap to ask</span>
+          </button>
+
+          <form id="text-form" class="ask">
+            <input id="text-input" maxlength="500" autocomplete="off" placeholder="Or type a question…" aria-label="Your question" />
+            <button type="submit" aria-label="Ask">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+
+        <footer id="disclosure" class="disclosure">
+          AI character based on our founder. Answers come from the school archives and may contain mistakes.
+        </footer>
       </section>
-
-      <section class="controls">
-        <label class="lang">
-          <span class="visually-hidden">Language</span>
-          <select id="lang">
-            <option value="auto">Auto</option>
-            <option value="en">English</option>
-            <option value="am">አማርኛ</option>
-            <option value="om">Afaan Oromoo</option>
-          </select>
-        </label>
-        <button id="mic" class="mic" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
-            />
-          </svg>
-          <span id="mic-label">Tap to ask</span>
-        </button>
-        <form id="text-form" class="text-form">
-          <input id="text-input" maxlength="500" autocomplete="off" placeholder="Or type your question…" aria-label="Your question" />
-          <button type="submit">Ask</button>
-        </form>
-      </section>
-
-      <section id="suggestions" class="suggestions" aria-label="Suggested questions"></section>
-
-      <footer id="disclosure" class="disclosure">
-        This is an AI character based on our founder. Answers come from the school archives and may contain mistakes.
-      </footer>
     </main>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
