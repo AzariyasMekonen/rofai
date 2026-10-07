@@ -1,0 +1,24 @@
+# Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Source documents and generated index (scans may contain personal data)
+data/sources/
+data/index/
+
+# 3D models are large binaries; keep them out of git unless using Git LFS
+frontend/public/models/*.vrm
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

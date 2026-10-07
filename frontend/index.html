@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>40th Anniversary – Talk with our founder</title>
+  </head>
+  <body>
+    <main id="app">
+      <header class="banner">
+        <span class="badge" aria-hidden="true">40</span>
+        <div>
+          <h1 id="title">Talk with our founder</h1>
+          <p id="subtitle">40th Anniversary</p>
+        </div>
+      </header>
+
+      <section class="stage">
+        <canvas id="avatar" aria-label="Animated portrait of our founder"></canvas>
+        <p id="model-note" class="model-note" hidden></p>
+      </section>
+
+      <section class="captions" aria-live="polite">
+        <p id="user-caption" class="caption user"></p>
+        <p id="answer-caption" class="caption answer"></p>
+        <p id="notice" class="notice" role="status"></p>
+      </section>
+
+      <section class="controls">
+        <label class="lang">
+          <span class="visually-hidden">Language</span>
+          <select id="lang">
+            <option value="auto">Auto</option>
+            <option value="en">English</option>
+            <option value="am">አማርኛ</option>
+            <option value="om">Afaan Oromoo</option>
+          </select>
+        </label>
+        <button id="mic" class="mic" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
+            />
+          </svg>
+          <span id="mic-label">Tap to ask</span>
+        </button>
+        <form id="text-form" class="text-form">
+          <input id="text-input" maxlength="500" autocomplete="off" placeholder="Or type your question…" aria-label="Your question" />
+          <button type="submit">Ask</button>
+        </form>
+      </section>
+
+      <section id="suggestions" class="suggestions" aria-label="Suggested questions"></section>
+
+      <footer id="disclosure" class="disclosure">
+        This is an AI character based on our founder. Answers come from the school archives and may contain mistakes.
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
