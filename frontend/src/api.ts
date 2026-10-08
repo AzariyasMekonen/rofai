@@ -22,7 +22,8 @@ export interface Health {
   llm: boolean;
   speech: boolean;
   indexChunks: number;
-  persona: string;
+  assistant: string;
+  founder: string;
   school: string;
 }
 

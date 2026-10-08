@@ -85,7 +85,8 @@ async def health(request: Request) -> dict:
         "speech": settings.speech_configured,
         "indexChunks": len(store) if store else 0,
         "search": "vector" if _use_vectors(store) else "keyword",
-        "persona": settings.persona_name,
+        "assistant": settings.assistant_name,
+        "founder": settings.founder_name,
         "school": settings.school_name,
     }
 

@@ -1,8 +1,8 @@
 import type { TtsResult, Viseme } from './api';
 
-const TARGET_RATE = 16000;
+export const TARGET_RATE = 16000;
 
-function downsample(input: Float32Array, fromRate: number, toRate: number): Float32Array {
+export function downsample(input: Float32Array, fromRate: number, toRate: number): Float32Array {
   if (fromRate === toRate) return input;
   const ratio = fromRate / toRate;
   const out = new Float32Array(Math.floor(input.length / ratio));
@@ -16,7 +16,7 @@ function downsample(input: Float32Array, fromRate: number, toRate: number): Floa
   return out;
 }
 
-function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
   const writeString = (offset: number, s: string) => {
@@ -42,54 +42,6 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-export class Recorder {
-  private ctx: AudioContext | null = null;
-  private stream: MediaStream | null = null;
-  private node: AudioWorkletNode | null = null;
-  private chunks: Float32Array[] = [];
-
-  get recording(): boolean {
-    return this.ctx !== null;
-  }
-
-  async start(): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-    this.ctx = new AudioContext();
-    await this.ctx.audioWorklet.addModule('/recorder-worklet.js');
-    const source = this.ctx.createMediaStreamSource(this.stream);
-    this.node = new AudioWorkletNode(this.ctx, 'recorder');
-    this.chunks = [];
-    this.node.port.onmessage = (e: MessageEvent<Float32Array>) => this.chunks.push(e.data);
-    source.connect(this.node);
-    // Worklet writes no output, so this stays silent but keeps the node in the render graph
-    this.node.connect(this.ctx.destination);
-  }
-
-  async stop(): Promise<Blob> {
-    const ctx = this.ctx;
-    if (!ctx) throw new Error('not recording');
-    this.ctx = null;
-    this.node?.disconnect();
-    this.stream?.getTracks().forEach((t) => t.stop());
-    const rate = ctx.sampleRate;
-    await ctx.close();
-    this.node = null;
-    this.stream = null;
-
-    const length = this.chunks.reduce((n, c) => n + c.length, 0);
-    const merged = new Float32Array(length);
-    let offset = 0;
-    for (const c of this.chunks) {
-      merged.set(c, offset);
-      offset += c.length;
-    }
-    this.chunks = [];
-    return encodeWav(downsample(merged, rate, TARGET_RATE), TARGET_RATE);
-  }
-}
-
 function base64ToArrayBuffer(b64: string): ArrayBuffer {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -106,6 +58,7 @@ export interface PlayingClip {
 export class SpeechPlayer {
   readonly ctx = new AudioContext();
   private readonly analyser: AnalyserNode;
+  private readonly gain: GainNode;
   private readonly samples: Float32Array<ArrayBuffer>;
   private queue: Promise<void> = Promise.resolve();
   private sources = new Set<AudioBufferSourceNode>();
@@ -116,7 +69,12 @@ export class SpeechPlayer {
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 1024;
     this.samples = new Float32Array(this.analyser.fftSize);
-    this.analyser.connect(this.ctx.destination);
+    this.gain = this.ctx.createGain();
+    this.analyser.connect(this.gain).connect(this.ctx.destination);
+  }
+
+  setVolume(volume: number): void {
+    this.gain.gain.setTargetAtTime(volume, this.ctx.currentTime, 0.05);
   }
 
   resume(): Promise<void> {

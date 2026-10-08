@@ -3,76 +3,99 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f5b800" />
-    <title>40 Years · Talk with Tsehay Roschli</title>
+    <title>Video call with Mekdes · 40th Anniversary</title>
+    <script>
+      document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light';
+    </script>
   </head>
-  <body data-state="idle">
-    <div class="tibeb tibeb--top" aria-hidden="true"></div>
+  <body data-state="idle" data-call="off">
+    <main class="call">
+      <section class="stage" aria-label="Video call">
+        <canvas id="avatar" aria-label="Mekdes, animated video"></canvas>
 
-    <main id="app" class="app">
-      <section class="portrait" aria-label="Animated portrait">
-        <div class="halo" aria-hidden="true"></div>
-        <canvas id="avatar" aria-label="Animated portrait of our founder"></canvas>
-        <div id="status" class="status" aria-hidden="true">
-          <span class="status__dot"></span><span id="status-text">Ready</span>
-        </div>
-        <p id="model-note" class="model-note" hidden></p>
-      </section>
-
-      <section class="panel">
-        <header class="masthead">
-          <div class="seal" aria-hidden="true"><span>40</span></div>
-          <div>
-            <p id="eyebrow" class="eyebrow">40th Anniversary</p>
-            <h1 id="title">Tsehay Roschli</h1>
-            <p class="role">Founder</p>
+        <header class="topbar">
+          <div class="who">
+            <span class="live" aria-hidden="true"></span>
+            <div>
+              <h1 id="title">Mekdes</h1>
+              <p id="subtitle">School guide · 40th Anniversary</p>
+            </div>
+          </div>
+          <div class="top-actions">
+            <span id="timer" class="timer" aria-label="Call duration">00:00</span>
+            <button id="theme" class="icon-btn" type="button" aria-label="Switch light or dark theme">
+              <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></svg>
+              <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor" /><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" /></svg>
+            </button>
           </div>
         </header>
 
-        <div class="conversation" aria-live="polite">
+        <div id="status" class="status" aria-hidden="true">
+          <span class="bars"><i></i><i></i><i></i><i></i></span>
+          <span id="status-text">Listening</span>
+        </div>
+
+        <div class="captions" aria-live="polite">
+          <p id="user-caption" class="cap cap--you"></p>
+          <p id="answer-caption" class="cap cap--her"></p>
           <p id="notice" class="notice" role="status" hidden></p>
-          <p id="user-caption" class="question"></p>
-          <p id="answer-caption" class="answer"></p>
-          <p id="welcome" class="welcome">Tap the microphone and ask about the school's story, in English or Amharic.</p>
         </div>
 
-        <div id="suggestions" class="suggestions" aria-label="Suggested questions"></div>
+        <aside class="self" aria-label="Your microphone">
+          <span class="self__ring" aria-hidden="true"></span>
+          <span class="self__label">You</span>
+          <svg class="self__muted" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 11h-1.7a5.3 5.3 0 0 1-.6 2.4l1.3 1.3A7 7 0 0 0 19 11ZM15 11V5a3 3 0 0 0-5.9-.8L15 10.1Zm-11-8L2.7 4.3 9 10.6V11a3 3 0 0 0 4.4 2.7l1.6 1.6A5 5 0 0 1 7 11H5a7 7 0 0 0 6 6.9V21h2v-3.1a7 7 0 0 0 3.4-1.4l3.3 3.3L21 18.5Z" /></svg>
+        </aside>
 
-        <div class="controls">
-          <div class="lang" role="radiogroup" aria-label="Language">
-            <label><input type="radio" name="lang" value="auto" checked /><span>Auto</span></label>
-            <label><input type="radio" name="lang" value="en" /><span>English</span></label>
-            <label><input type="radio" name="lang" value="am" /><span>አማርኛ</span></label>
-            <label><input type="radio" name="lang" value="om" /><span>Oromoo</span></label>
-          </div>
+        <p id="model-note" class="model-note" hidden></p>
 
-          <button id="mic" class="mic" type="button" aria-pressed="false">
-            <span class="mic__ring" aria-hidden="true"></span>
-            <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
-              />
-            </svg>
-            <span id="mic-label" class="visually-hidden">Tap to ask</span>
-          </button>
-
-          <form id="text-form" class="ask">
-            <input id="text-input" maxlength="500" autocomplete="off" placeholder="Or type a question…" aria-label="Your question" />
-            <button type="submit" aria-label="Ask">
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" />
-              </svg>
+        <div id="lobby" class="lobby">
+          <div class="lobby__card">
+            <p class="eyebrow">40th Anniversary</p>
+            <h2>Video call with <span id="lobby-name">Mekdes</span></h2>
+            <p class="lead">Ask her about our school's story. Just talk, in English or Amharic. You can interrupt her any time.</p>
+            <div class="lang" role="radiogroup" aria-label="Language">
+              <label><input type="radio" name="lang" value="auto" checked /><span>Auto</span></label>
+              <label><input type="radio" name="lang" value="en" /><span>English</span></label>
+              <label><input type="radio" name="lang" value="am" /><span>አማርኛ</span></label>
+              <label><input type="radio" name="lang" value="om" /><span>Oromoo</span></label>
+            </div>
+            <button id="start" class="btn-start" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11Z" /></svg>
+              Start video call
             </button>
-          </form>
+            <p class="hint">Headphones work best so Mekdes doesn't hear herself.</p>
+          </div>
         </div>
-
-        <footer id="disclosure" class="disclosure">
-          AI character based on our founder. Answers come from the school archives and may contain mistakes.
-        </footer>
       </section>
+
+      <div id="suggestions" class="suggestions" aria-label="Suggested questions"></div>
+
+      <form id="text-form" class="ask" hidden>
+        <input id="text-input" maxlength="500" autocomplete="off" placeholder="Type a message…" aria-label="Type a message" />
+        <button type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" /></svg>
+        </button>
+      </form>
+
+      <nav class="dock" aria-label="Call controls">
+        <button id="mute" class="dock-btn" type="button" aria-pressed="false" aria-label="Mute microphone">
+          <svg class="i-mic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" /></svg>
+          <svg class="i-mic-off" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 11h-1.7a5.3 5.3 0 0 1-.6 2.4l1.3 1.3A7 7 0 0 0 19 11ZM15 11V5a3 3 0 0 0-5.9-.8L15 10.1Zm-11-8L2.7 4.3 9 10.6V11a3 3 0 0 0 4.4 2.7l1.6 1.6A5 5 0 0 1 7 11H5a7 7 0 0 0 6 6.9V21h2v-3.1a7 7 0 0 0 3.4-1.4l3.3 3.3L21 18.5Z" /></svg>
+        </button>
+        <button id="keyboard" class="dock-btn" type="button" aria-pressed="false" aria-label="Type a message">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm-9 3h2v2h-2Zm0 3h2v2h-2ZM8 8h2v2H8Zm0 3h2v2H8Zm-1 2H5v-2h2Zm0-3H5V8h2Zm9 7H8v-2h8Zm0-4h-2v-2h2Zm0-3h-2V8h2Zm3 3h-2v-2h2Zm0-3h-2V8h2Z" /></svg>
+        </button>
+        <button id="end" class="dock-btn dock-btn--end" type="button" aria-label="End call">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 9c-1.6 0-3.1.3-4.5.7v3.1c0 .4-.2.7-.6.9-1 .5-1.9 1.1-2.7 1.8a1 1 0 0 1-1.4 0L.3 13a1 1 0 0 1 0-1.4C3.3 8.8 7.5 7 12 7s8.7 1.8 11.7 4.6a1 1 0 0 1 0 1.4l-2.5 2.5a1 1 0 0 1-1.4 0c-.8-.7-1.7-1.3-2.7-1.8a1 1 0 0 1-.6-.9V9.7C15.1 9.3 13.6 9 12 9Z" /></svg>
+        </button>
+      </nav>
+
+      <footer id="disclosure" class="disclosure">
+        Mekdes is an AI guide created by the school. Answers come from the school archives and may contain mistakes.
+      </footer>
     </main>
 
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/app.ts"></script>
   </body>
 </html>

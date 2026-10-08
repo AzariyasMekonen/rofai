@@ -17,6 +17,9 @@ frontend/dist/
 # Source documents and generated index (scans may contain personal data)
 data/sources/
 data/index/
+/*.jpg
+/*.jpeg
+/*.png
 
 # 3D models are large binaries; keep them out of git unless using Git LFS
 *.vrm

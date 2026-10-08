@@ -30,11 +30,12 @@ class Settings(BaseSettings):
     azure_speech_region: str = ""
     tts_voice_en: str = "en-US-AvaMultilingualNeural"
     tts_voice_am: str = "am-ET-MekdesNeural"
-    tts_rate: str = "-8%"
-    tts_pitch: str = "-4%"
+    tts_rate: str = "-3%"
+    tts_pitch: str = "+0%"
 
     school_name: str = "our school"
-    persona_name: str = "Tsehay Roschli"
+    assistant_name: str = "Mekdes"
+    founder_name: str = "Tsehay Roschli"
 
     data_dir: Path = ROOT_DIR / "data"
     top_k: int = 5
