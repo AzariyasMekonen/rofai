@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     llm_base_url: str = ""
     llm_api_key: str = ""
+    llm_keys_file: str = ""
     llm_model: str = ""
 
     copilot_github_token: str = ""
@@ -47,6 +48,32 @@ class Settings(BaseSettings):
     @property
     def origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    @property
+    def api_keys(self) -> list[str]:
+        keys: list[str] = []
+        candidates: list[Path] = []
+        if self.llm_keys_file:
+            p = Path(self.llm_keys_file)
+            if p.is_absolute():
+                candidates.append(p)
+            else:
+                candidates.extend([ROOT_DIR / p, ROOT_DIR / "backend" / p])
+        candidates.extend([
+            ROOT_DIR / "backend" / "gemini_keys.txt",
+            ROOT_DIR / "gemini_keys.txt",
+        ])
+        for cand in candidates:
+            if cand.exists() and cand.is_file():
+                for line in cand.read_text(encoding="utf-8").splitlines():
+                    k = line.strip()
+                    if k and not k.startswith("#"):
+                        keys.append(k)
+                if keys:
+                    return keys
+        if self.llm_api_key:
+            keys.append(self.llm_api_key)
+        return keys
 
     @property
     def index_dir(self) -> Path:

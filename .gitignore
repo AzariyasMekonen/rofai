@@ -1,5 +1,7 @@
 # Secrets
 .env
+gemini_keys.txt
+*keys*.txt
 
 # Copilot runtime state
 .copilot-home/
@@ -17,9 +19,11 @@ frontend/dist/
 # Source documents and generated index (scans may contain personal data)
 data/sources/
 data/index/
+data/scans/
 /*.jpg
 /*.jpeg
 /*.png
+
 
 # 3D models are large binaries; keep them out of git unless using Git LFS
 *.vrm
