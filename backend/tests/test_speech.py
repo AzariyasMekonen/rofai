@@ -3,7 +3,14 @@ import wave
 
 import pytest
 
-from app.speech import InvalidAudioError, build_ssml, detect_text_language, read_wav_pcm
+from app.speech import (
+    InvalidAudioError,
+    build_ssml,
+    detect_text_language,
+    generate_amharic_visemes,
+    read_wav_pcm,
+)
+
 
 
 def _wav(rate=16000, channels=1, width=2, frames=1600) -> bytes:
@@ -47,3 +54,16 @@ def test_read_wav_pcm_rejects_too_long():
 def test_read_wav_pcm_rejects_garbage():
     with pytest.raises(InvalidAudioError):
         read_wav_pcm(b"not a wav", max_seconds=30)
+
+
+def test_generate_amharic_visemes():
+    visemes = generate_amharic_visemes("ሰላም እንደምን አላችሁ?", 2000.0)
+    assert len(visemes) >= 10
+    assert visemes[0]["t"] == 0.0 and visemes[0]["id"] == 0
+    assert visemes[-1]["t"] == 2000.0 and visemes[-1]["id"] == 0
+    # Checks that non-zero visemes exist
+    non_zero = [v["id"] for v in visemes if v["id"] > 0]
+    assert len(non_zero) > 0
+    # In 'ሰላም', 'ላ' has 4th order (a) -> viseme 2
+    assert 2 in non_zero
+

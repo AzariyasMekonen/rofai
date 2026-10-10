@@ -54,12 +54,21 @@ export interface PlayingClip {
   visemes: Viseme[];
 }
 
+export interface AudioFeatures {
+  energy: number;
+  low: number;
+  mid: number;
+  high: number;
+}
+
 /** Plays synthesized sentences strictly in order while exposing timing for lip-sync. */
 export class SpeechPlayer {
   readonly ctx = new AudioContext();
   private readonly analyser: AnalyserNode;
   private readonly gain: GainNode;
   private readonly samples: Float32Array<ArrayBuffer>;
+  private readonly freqData: Uint8Array<ArrayBuffer>;
+  private smoothedLevel = 0;
   private queue: Promise<void> = Promise.resolve();
   private sources = new Set<AudioBufferSourceNode>();
   private generation = 0;
@@ -67,8 +76,10 @@ export class SpeechPlayer {
 
   constructor() {
     this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 1024;
+    this.analyser.fftSize = 512;
+    this.analyser.smoothingTimeConstant = 0.25;
     this.samples = new Float32Array(this.analyser.fftSize);
+    this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
     this.gain = this.ctx.createGain();
     this.analyser.connect(this.gain).connect(this.ctx.destination);
   }
@@ -102,17 +113,43 @@ export class SpeechPlayer {
     for (const src of this.sources) src.stop();
     this.sources.clear();
     this.current = null;
+    this.smoothedLevel = 0;
     this.queue = Promise.resolve();
   }
 
-  /** Current output loudness, 0..1. */
+  /** Current output loudness, 0..1, smoothed with fast attack and natural decay. */
   level(): number {
     this.analyser.getFloatTimeDomainData(this.samples);
     let sum = 0;
-    for (const s of this.samples) sum += s * s;
+    for (let i = 0; i < this.samples.length; i++) {
+      const s = this.samples[i];
+      sum += s * s;
+    }
     const rms = Math.sqrt(sum / this.samples.length);
-    return Math.min(1, Math.max(0, (rms - 0.01) * 6));
+    // Speech floor: < 0.006 is background silence. Multiplier 11 reaches 1.0 on voiced peaks.
+    const raw = Math.min(1, Math.max(0, (rms - 0.006) * 11));
+    const rate = raw > this.smoothedLevel ? 0.45 : 0.16;
+    this.smoothedLevel += (raw - this.smoothedLevel) * rate;
+    return this.smoothedLevel;
   }
+
+  /** Frequency domain speech features for phonetic spectral fallback. */
+  vowelFeatures(): AudioFeatures {
+    this.analyser.getByteFrequencyData(this.freqData);
+    let sumLow = 0;
+    for (let i = 1; i <= 8; i++) sumLow += this.freqData[i];
+    let sumMid = 0;
+    for (let i = 9; i <= 25; i++) sumMid += this.freqData[i];
+    let sumHigh = 0;
+    for (let i = 26; i <= 64; i++) sumHigh += this.freqData[i];
+
+    const low = sumLow / (8 * 255);
+    const mid = sumMid / (17 * 255);
+    const high = sumHigh / (39 * 255);
+    const energy = this.level();
+    return { energy, low, mid, high };
+  }
+
 
   private play(buffer: AudioBuffer, visemes: Viseme[]): Promise<void> {
     return new Promise((resolve) => {

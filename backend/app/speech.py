@@ -28,7 +28,11 @@ def _config() -> speechsdk.SpeechConfig:
     s = get_settings()
     if not s.speech_configured:
         raise SpeechNotConfiguredError("AZURE_SPEECH_KEY and AZURE_SPEECH_REGION must be set in .env")
-    return speechsdk.SpeechConfig(subscription=s.azure_speech_key, region=s.azure_speech_region)
+    cfg = speechsdk.SpeechConfig(subscription=s.azure_speech_key, region=s.azure_speech_region)
+    cfg.set_property(speechsdk.PropertyId.SpeechSynthesis_FrameTimeoutInterval, "15000")
+    cfg.set_property(speechsdk.PropertyId.SpeechSynthesis_RtfTimeoutThreshold, "10")
+    return cfg
+
 
 
 def read_wav_pcm(data: bytes, max_seconds: int) -> bytes:
@@ -87,6 +91,98 @@ def build_ssml(text: str, voice: str, locale: str, rate: str, pitch: str) -> str
     )
 
 
+# Ge'ez fidel base consonant articulatory categories (Viseme ID for consonant onset)
+_ETHIOPIC_CONSONANTS: dict[int, int] = {
+    # Bilabial: lips pressed together (viseme 21)
+    0x1210: 21,  # መ
+    0x1260: 21,  # በ
+    0x1338: 21,  # ጰ
+    0x1358: 21,  # ፐ
+    # Labiodental: lower lip to upper teeth (viseme 18)
+    0x1268: 18,  # ቨ
+    0x1348: 18,  # ፈ
+    # Sibilants / dental: closed teeth, tongue blade (viseme 15)
+    0x1230: 15,  # ሰ
+    0x1228: 15,  # ሠ
+    0x1238: 15,  # ሸ
+    0x12D8: 15,  # ዘ
+    0x12E0: 15,  # ዠ
+    0x1330: 15,  # ጸ
+    0x1340: 15,  # ፀ
+    # Alveolar & others (viseme 19)
+    0x1270: 19,  # ተ
+    0x1278: 19,  # ቸ
+    0x1290: 19,  # ነ
+    0x1298: 19,  # ኘ
+    0x12A8: 19,  # ከ
+    0x12B8: 19,  # ኸ
+    0x12C8: 7,   # ወ
+    0x12E8: 6,   # የ
+    0x12F0: 19,  # ደ
+    0x12F8: 19,  # ጀ
+    0x1300: 19,  # ገ
+    0x1320: 19,  # ጠ
+    0x1328: 19,  # ጨ
+}
+
+# Ge'ez 7 vowel orders (0 to 6) mapped onto Azure Viseme IDs
+_ORDER_TO_VISEME: dict[int, int] = {
+    0: 1,   # 1st order (ግዕዝ /ä/): open-mid vowel -> viseme 1 (/æ/, /ʌ/)
+    1: 7,   # 2nd order (ካዕብ /u/): rounded vowel -> viseme 7 (/u/, /w/)
+    2: 6,   # 3rd order (ሣልስ /i/): spread vowel -> viseme 6 (/i/, /y/)
+    3: 2,   # 4th order (ራብዕ /a/): wide open jaw -> viseme 2 (/ɑ/)
+    4: 4,   # 5th order (ኃምስ /e/): spread mid -> viseme 4 (/eɪ/, /ɛ/)
+    5: 19,  # 6th order (ሳድስ /ə/ or coda consonant): closed/alveolar -> viseme 19
+    6: 8,   # 7th order (ሳብዕ /o/): rounded open -> viseme 8 (/oʊ/, /ɔ/)
+}
+
+
+def generate_amharic_visemes(text: str, duration_ms: float) -> list[dict[str, float]]:
+    """Generate high-precision phonetic viseme timeline for Ge'ez/Amharic text."""
+    items: list[tuple[int, float]] = []
+    for ch in text:
+        code = ord(ch)
+        if ch in " \t":
+            items.append((0, 1.0))
+        elif ch in "፣,;":
+            items.append((0, 1.8))
+        elif ch in "።.!?፦":
+            items.append((0, 2.5))
+        elif 0x1200 <= code <= 0x137F:
+            order = (code - 0x1200) % 8
+            base = code - order
+            cons_viseme = _ETHIOPIC_CONSONANTS.get(base)
+            if cons_viseme in (21, 18) and order != 5:
+                # Bilabial or labiodental closure before vowel
+                items.append((cons_viseme, 0.4))
+                items.append((_ORDER_TO_VISEME.get(order, 1), 0.8))
+            elif order < 7:
+                vowel_viseme = _ORDER_TO_VISEME.get(order, 1)
+                items.append((vowel_viseme, 1.0))
+            else:
+                items.append((1, 1.0))
+        elif ch.isalnum():
+            items.append((1, 1.0))
+
+    if not items:
+        return [{"t": 0.0, "id": 0}]
+
+    total_weight = sum(w for _, w in items)
+    lead_in = min(60.0, duration_ms * 0.05)
+    lead_out = min(80.0, duration_ms * 0.06)
+    active_ms = max(50.0, duration_ms - lead_in - lead_out)
+    ms_per_weight = active_ms / max(1.0, total_weight)
+
+    visemes: list[dict[str, float]] = [{"t": 0.0, "id": 0}]
+    cur_t = lead_in
+    for vid, w in items:
+        visemes.append({"t": round(cur_t, 1), "id": vid})
+        cur_t += w * ms_per_weight
+
+    visemes.append({"t": round(duration_ms, 1), "id": 0})
+    return visemes
+
+
 def synthesize(text: str, language: str) -> tuple[bytes, list[dict[str, float]]]:
     """Text-to-speech to MP3. Returns (audio bytes, visemes as [{t: ms, id}])."""
     s = get_settings()
@@ -100,13 +196,27 @@ def synthesize(text: str, language: str) -> tuple[bytes, list[dict[str, float]]]
     synthesizer = speechsdk.SpeechSynthesizer(speech_config=cfg, audio_config=None)
 
     visemes: list[dict[str, float]] = []
-    # audio_offset is in 100-ns ticks; am-ET voices emit no visemes, the client falls back to loudness
     synthesizer.viseme_received.connect(
         lambda evt: visemes.append({"t": evt.audio_offset / 10_000, "id": evt.viseme_id})
     )
 
     result = synthesizer.speak_ssml_async(build_ssml(text, voice, locale, s.tts_rate, s.tts_pitch)).get()
     if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+        duration_ms = result.audio_duration.total_seconds() * 1000
+        if duration_ms <= 0:
+            # Fallback estimation for 24kHz 48kbps MP3 (6000 bytes/sec)
+            duration_ms = (len(result.audio_data) / 6000.0) * 1000.0
+
+        # am-ET voices emit dummy (0.0, 0) visemes; generate real phonetic visemes for Amharic
+        if language == "am" or not visemes or all(v.get("id", 0) == 0 for v in visemes):
+            visemes = generate_amharic_visemes(text, duration_ms)
+        elif visemes and duration_ms > 0:
+            # Ensure English speech ends with resting mouth shape
+            if visemes[-1]["t"] < duration_ms:
+                visemes.append({"t": round(duration_ms, 1), "id": 0})
+
         return result.audio_data, visemes
+
     details = result.cancellation_details
     raise SpeechServiceError(f"synthesis canceled: {details.reason} {details.error_details}")
+

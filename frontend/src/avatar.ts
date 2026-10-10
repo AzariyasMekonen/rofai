@@ -52,6 +52,9 @@ class VrmCharacter implements Character {
   }
 
   update(dt: number, time: number, mouth: MouthShape, state: AvatarState): void {
+
+    const open = Math.min(1, mouth.aa + mouth.oh * 0.8 + mouth.ou * 0.5 + mouth.ih * 0.3 + mouth.ee * 0.3);
+
     const em = this.vrm.expressionManager;
     if (em) {
       em.setValue('aa', mouth.aa);
@@ -60,8 +63,9 @@ class VrmCharacter implements Character {
       em.setValue('ee', mouth.ee);
       em.setValue('oh', mouth.oh);
       em.setValue('blink', this.blinker.value(dt));
-      // Gentle default smile, softened while speaking so mouth shapes stay readable
-      em.setValue('happy', state === 'speaking' ? 0.15 : 0.35);
+      // Gentle default smile, dynamically softened when speaking to prevent jaw distortion
+      const smile = state === 'speaking' ? Math.max(0, 0.2 - open * 0.4) : 0.35;
+      em.setValue('happy', smile);
     }
 
     const h = this.vrm.humanoid;
@@ -72,8 +76,9 @@ class VrmCharacter implements Character {
       const tilt = state === 'thinking' ? 0.12 : state === 'listening' ? 0.06 : 0;
       neck.rotation.z = THREE.MathUtils.damp(neck.rotation.z, tilt, 4, dt);
       neck.rotation.y = Math.sin(time * 0.5) * 0.04;
-      neck.rotation.x = state === 'speaking' ? Math.sin(time * 2.3) * 0.02 : 0;
+      neck.rotation.x = state === 'speaking' ? Math.sin(time * 2.8) * 0.015 * Math.min(1, open * 1.5) : 0;
     }
+
 
     this.vrm.update(dt);
   }
